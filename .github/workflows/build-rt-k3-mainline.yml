@@ -27,29 +27,32 @@ env:
   MACADDR1_24G: ${{ github.event.inputs.Wlan0 }}
   MACADDR2_5G: ${{ github.event.inputs.Wlan1 }}
   ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+  
 jobs:
   build:
     runs-on: ubuntu-20.04
     if: github.event.repository.owner.id == github.event.sender.id
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     
     - name: Update && install packages
       run: |
-       sudo apt-get update
-       sudo apt-get install -y libncurses5 libncurses5-dev m4 bison gawk flex g++ \
-       gengetopt git zlib1g-dev autoconf autopoint libtool shtool autogen \
-       mtd-utils intltool sharutils docbook-xsl texinfo dos2unix xsltproc \
-       u-boot-tools device-tree-compiler qemu gperf liblzo2-dev uuid-dev build-essential \
-       lzma-dev liblzma-dev lzma binutils-dev patch cmake intltool libglib2.0-dev \
-       gtk-doc-tools gcc-arm-linux-gnueabi perl \
-       automake bash bzip2 diffutils file groff-base libslang2 make pkg-config subversion tar \
-       gettext libexpat1-dev libssl-dev cvs unzip python libxml-parser-perl gcc-multilib gconf-editor \
-       libxml2-dev g++-multilib gitk sed lib32z1-dev lib32stdc++6 automake-1.15
-       sudo dpkg --add-architecture i386
-       sudo apt-get update
-       sudo apt-get install -y lsb-core libstdc++6:i386
+        sudo add-apt-repository ppa:git-core/ppa -y # 添加Git的PPA以获取更新的版本
+        sudo dpkg --add-architecture i386
+        sudo apt-get update
+        sudo apt-get install -y libncurses5 libncurses5-dev m4 bison gawk flex g++ \
+        gengetopt zlib1g-dev autoconf autopoint libtool shtool autogen \
+        mtd-utils intltool sharutils docbook-xsl texinfo dos2unix xsltproc \
+        u-boot-tools device-tree-compiler qemu gperf liblzo2-dev uuid-dev build-essential \
+        lzma-dev liblzma-dev lzma binutils-dev patch cmake libglib2.0-dev \
+        gtk-doc-tools perl \
+        automake bash bzip2 diffutils file groff-base libslang2 make pkg-config subversion tar \
+        gettext libexpat1-dev libssl-dev cvs unzip python libxml-parser-perl gcc-multilib gconf-editor \
+        libxml2-dev g++-multilib sed lib32z1-dev lib32stdc++6 automake-1.15 lsb-core libstdc++6:i386
+        sudo apt-get install gcc-9-arm-linux-gnueabi -y # 明确安装gcc-arm依赖的版本
+        sudo apt-get install git -y # 从添加的PPA安装更新的Git版本
+        sudo apt-get install gitk -y # 安装gitk
         
     - name: Clone source code and set up directories
       run: |       
