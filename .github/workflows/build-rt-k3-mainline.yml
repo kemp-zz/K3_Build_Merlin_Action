@@ -35,15 +35,21 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v2
     
-    - name: Update && install packages
+    - name: Update && install packages    
       run: |
-        sudo apt-get update && sudo apt-get install -y libncurses5 libncurses5-dev m4 bison gawk flex g++ \
+        sudo apt-get update
+        sudo apt-get install -y libncurses5 libncurses5-dev m4 bison gawk flex g++ \
         gengetopt git zlib1g-dev autoconf autopoint libtool-bin shtool autogen \
         mtd-utils intltool sharutils docbook-xsl-* texinfo dos2unix xsltproc \
         u-boot-tools device-tree-compiler qemu gperf liblzo2-dev uuid-dev build-essential \
         lzma-dev liblzma-dev lzma binutils-dev patch cmake intltool libglib2.0-dev \
-        gtk-doc-tools gcc-arm-linux-gnueabi automake perl lsb-core  libstdc++6:i386 libc6-i386 lib32stdc++6 lib32z1 libelf1:i386 lib32ncurses5-dev libc6-dev-i386
-
+        gtk-doc-tools gcc-arm-linux-gnueabi automake perl
+        sudo apt install automake-1.15
+        #sudo apt-get install -y libtool-bin cmake libproxy-dev uuid-dev liblzo2-dev autoconf automake bash bzip2 diffutils file flex m4 g++ gawk groff-base libncurses5-dev libtool libslang2 make patch perl pkg-config shtool subversion tar texinfo zlib1g zlib1g-dev git gettext libexpat1-dev libssl-dev cvs gperf unzip python libxml-parser-perl gcc-multilib gconf-editor libxml2-dev g++-multilib gitk libncurses5 libncurses5-dev libvorbis-dev git autopoint autogen sed build-essential intltool libglib2.0-devxutils-dev lib32z1-dev lib32stdc++6 xsltproc gtk-doc-tools
+        sudo dpkg --add-architecture i386
+        sudo apt-get update
+        sudo apt-get install lsb-core  libstdc++6:i386
+        
     - name: Clone source code and set up directories
       run: |       
        git clone -b 386.12_x https://github.com/kemp-zz/asuswrt-merlin.ng.git
