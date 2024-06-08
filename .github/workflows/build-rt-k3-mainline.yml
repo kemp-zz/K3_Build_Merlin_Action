@@ -92,12 +92,11 @@ jobs:
         
     - name: Clone source code
       run: |       
-        #git clone https://github.com/RMerl/asuswrt-merlin
-        git clone https://github.com/kemp-zz/asuswrt-merlin.ng/tree/386.12_x
-        #git clone https://github.com/ghostnup/asuswrt-merlin.ng
-        git clone https://github.com/godcong/k3screenctrl asuswrt-merlin.ng/release/src/router/k3screenctrl 
-        git clone https://github.com/RMerl/am-toolchains.git
-               
+       #git clone https://github.com/RMerl/asuswrt-merlin
+       git clone -b 386.12_x https://github.com/kemp-zz/asuswrt-merlin.ng.git
+       #git clone https://github.com/ghostnup/asuswrt-merlin.ng
+       git clone https://github.com/godcong/k3screenctrl asuswrt-merlin.ng/release/src/router/k3screenctrl 
+       git clone https://github.com/RMerl/am-toolchains.git
         sudo mkdir -p /media/asuswrt/
         sudo mkdir -p /opt/images/
         
