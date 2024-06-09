@@ -61,7 +61,6 @@ jobs:
        git clone https://github.com/RMerl/am-toolchains.git
        sudo mkdir -p /media/asuswrt/
        sudo mkdir -p /opt/images/
-
     - name: Setup toolchain and workspace
       run: |       
         sudo ln -s $(pwd)/am-toolchains/brcm-arm-hnd /opt/toolchains
@@ -74,9 +73,9 @@ jobs:
         sudo ln -s $(pwd)/asuswrt-merlin.ng /media/asuswrt/asuswrt-merlin.ng       
         cd /media/asuswrt/asuswrt-merlin.ng
         git checkout mainline    
-
     - name: Modify Configuration Files
-      run: |        
+      run: |
+        export PATH=$PATH:/usr/bin
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/build/broadcom/bcm947xx/compressed
         sed -i 's/^\(et0macaddr=\).*/\1${{ env.ET0MACADDR }}/g' rt-k3_nvram.txt
         sed -i 's/^\(1:macaddr=\).*/\1${{ env.MACADDR1_24G }}/g' rt-k3_nvram.txt
@@ -92,6 +91,7 @@ jobs:
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/
         make
         echo "build cfe done"
+
         
 
     - name: Move file && Checksum
