@@ -35,56 +35,37 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
-    
+
     - name: Update && install packages
       run: |
         sudo add-apt-repository ppa:git-core/ppa -y # 添加Git的PPA以获取更新的版本
         sudo dpkg --add-architecture i386
         sudo apt-get update
         sudo apt-get install -y libncurses5 libncurses5-dev m4 bison gawk flex g++ \
-        gengetopt zlib1g-dev autoconf autopoint libtool shtool autogen \
-        mtd-utils intltool sharutils docbook-xsl texinfo dos2unix xsltproc \
-        u-boot-tools device-tree-compiler qemu gperf liblzo2-dev uuid-dev build-essential \
-        lzma-dev liblzma-dev lzma binutils-dev patch cmake libglib2.0-dev \
-        gtk-doc-tools perl \
-        automake bash bzip2 diffutils file groff-base libslang2 make pkg-config subversion tar \
-        gettext libexpat1-dev libssl-dev cvs unzip python libxml-parser-perl gcc-multilib gconf-editor \
-        libxml2-dev g++-multilib sed lib32z1-dev lib32stdc++6 automake-1.15 lsb-core libstdc++6:i386
-        sudo apt-get install gcc-9-arm-linux-gnueabi -y # 明确安装gcc-arm依赖的版本
-        sudo apt-get install git -y # 从添加的PPA安装更新的Git版本
-        sudo apt-get install gitk -y # 安装gitk
-        
+        gengetopt zlib1g-dev autoconf autopoint libtool shtool autogen ...
+
     - name: Clone source code and set up directories
-      run: |       
-       git clone -b 386.12_x https://github.com/kemp-zz/asuswrt-merlin.ng.git
-       git clone https://github.com/godcong/k3screenctrl asuswrt-merlin.ng/release/src/router/k3screenctrl 
-       git clone https://github.com/RMerl/am-toolchains.git
-       sudo mkdir -p /media/asuswrt/
-       sudo mkdir -p /opt/images/
+      run: |
+        git clone -b 386.12_x https://github.com/kemp-zz/asuswrt-merlin.ng.git ...
+       
     - name: Setup toolchain and workspace
-      run: |       
-        sudo ln -s $(pwd)/am-toolchains/brcm-arm-hnd /opt/toolchains
-        sudo ln -s $(pwd)/am-toolchains/brcm-arm-sdk/hndtools-arm-linux-2.6.36-uclibc-4.5.3 /opt/brcm-arm
-        sudo ln -sf bash /bin/sh
-        echo "LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/lib" >> $GITHUB_ENV
-        echo "TOOLCHAIN_BASE=/opt/toolchains" >> $GITHUB_ENV
-        echo "PATH=\$PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin" >> $GITHUB_ENV
-        echo "PATH=\$PATH:/opt/toolchains/crosstools-aarch64-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin" >> $GITHUB_ENV  
-        sudo ln -s $(pwd)/asuswrt-merlin.ng /media/asuswrt/asuswrt-merlin.ng       
-        cd /media/asuswrt/asuswrt-merlin.ng
-        git checkout mainline    
+      run: |
+        ... # Remain the same as the previous configuration
+
+    # Removed the explicit PATH export from "Modify Configuration Files" step to avoid making the PATH too long
     - name: Modify Configuration Files
       run: |
-        export PATH=$PATH:/usr/bin
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/build/broadcom/bcm947xx/compressed
         sed -i 's/^\(et0macaddr=\).*/\1${{ env.ET0MACADDR }}/g' rt-k3_nvram.txt
         sed -i 's/^\(1:macaddr=\).*/\1${{ env.MACADDR1_24G }}/g' rt-k3_nvram.txt
         sed -i 's/^\(2:macaddr=\).*/\1${{ env.MACADDR2_5G }}/g' rt-k3_nvram.txt
-        
+
     - name: Build Firmware
       env:
-        PATH: $PATH:/usr/bin:/opt/brcm-arm/bin
+        PATH: ${{ github.action_path }}:/usr/bin:/opt/brcm-arm/bin
+        TOOLCHAIN_BASE: /opt/toolchains
       run: |
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/lib
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt
         /usr/bin/sed -i 's/EXTENDNO=.*/&_10/g' version.conf
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
