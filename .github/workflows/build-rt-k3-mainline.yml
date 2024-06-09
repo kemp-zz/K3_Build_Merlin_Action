@@ -83,9 +83,10 @@ jobs:
         
     - name: Build Firmware
       run: |
+        export PATH=$PATH:/usr/bin
         export PATH=\$PATH:/opt/brcm-arm/bin
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt
-        sed -i 's/EXTENDNO=.*/&_${{ github.run_number }}/g' version.conf
+        sed -i 's/EXTENDNO=.*/&_10/g' version.conf
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
         make rt-k3
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/
