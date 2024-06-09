@@ -82,17 +82,17 @@ jobs:
         sed -i 's/^\(2:macaddr=\).*/\1${{ env.MACADDR2_5G }}/g' rt-k3_nvram.txt
         
     - name: Build Firmware
-      env:
-        PATH: $PATH:/usr/bin:/opt/brcm-arm/bin
-      run: |
-        cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt
-        /usr/bin/sed -i 's/EXTENDNO=.*/&_10/g' version.conf
+      env:    
+        PATH: ${{ github.action_path }}:/usr/bin:/opt/brcm-arm/bin
+        TOOLCHAIN_BASE: /opt/toolchains
+      run: |     
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/lib     
+        /usr/bin/sed -i 's/EXTENDNO=.*/&_10/g' /media/asuswrt/asuswrt-merlin.ng/release/src-rt/version.conf      
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
-        make rt-k3
+        make rt-k3     
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/
         make
         echo "build cfe done"
-        
 
     - name: Move file && Checksum
       run: |
