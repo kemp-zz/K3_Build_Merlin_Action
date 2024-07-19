@@ -1,4 +1,5 @@
 
+
 name: build rt-k3-mainline
 permissions:
   contents: write
@@ -40,9 +41,7 @@ jobs:
 
     steps:
     - name: Checkout
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      uses: actions/checkout@v2
-      # Runs a single command using the runners shell
+      uses: actions/checkout@v3
     - name: Update && install packages
       run: |
         sudo apt-get update
@@ -57,7 +56,7 @@ jobs:
         sudo dpkg --add-architecture i386
         sudo apt-get update
         sudo apt-get install lsb-core  libstdc++6:i386
-     # package for 16.04   
+        # package for 16.04   
      #   sudo apt-get install -y libncurses5 libncurses5-dev m4 bison gawk flex libstdc++6-4.7-dev g++-4.7 g++ \
      #   gengetopt git gitk zlib1g-dev autoconf autopoint libtool-bin shtool autogen \
      #   mtd-utils intltool sharutils docbook-xsl-* libstdc++5 texinfo dos2unix xsltproc \
@@ -122,7 +121,7 @@ jobs:
         sudo ln -s $(pwd)/asuswrt-merlin.ng /media/asuswrt/asuswrt-merlin.ng       
         
         cd /media/asuswrt/asuswrt-merlin.ng
-        git checkout mainline    
+        git checkout main # Assuming "main" is the main development branch
         echo "::set-env name=MERLIN_VERSION::$(git show-ref --heads -s)"
         echo "::set-env name=MERLIN_TAG::$(git show-ref --heads --hash=8)"
         echo "::set-env name=BUILD_DATE::$(date +%Y%m%d%H%M)"
