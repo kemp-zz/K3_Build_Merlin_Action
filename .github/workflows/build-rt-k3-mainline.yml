@@ -115,6 +115,26 @@ jobs:
         echo "MERLIN_TAG=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
         echo "BUILD_DATE=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
 
+    - name: Check Directory Structure
+      run: |
+        echo "Current working directory:"
+        pwd
+
+        echo "Contents of current directory:"
+        ls -la
+
+        echo "Contents of /media/asuswrt:"
+        ls -la /media/asuswrt
+
+        echo "Contents of /media/asuswrt/asuswrt-merlin.ng (if exists):"
+        ls -la /media/asuswrt/asuswrt-merlin.ng || echo "Directory does not exist"
+
+        echo "Full directory structure of /media/asuswrt/asuswrt-merlin.ng:"
+        find /media/asuswrt/asuswrt-merlin.ng -type d | sort | sed -e "s/[^-][^\/]*\// |/g" -e "s/|$$[^ ]$$/|-\1/"
+
+        echo "Searching for 'compressed' directory:"
+        find /media/asuswrt/asuswrt-merlin.ng -type d -name "compressed"
+
     - name: Setup build environment
       run: |
         cd /media/asuswrt/asuswrt-merlin.ng || exit 1
@@ -136,14 +156,32 @@ jobs:
         which mipsel-linux-gnu-gcc || echo "mipsel-linux-gnu-gcc not found in PATH"
     - name: Modify File
       run: |
-        cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/build/broadcom/bcm947xx/compressed
+        # 查找 compressed 目录
+        COMPRESSED_DIR=$(find /media/asuswrt/asuswrt-merlin.ng -type d -name "compressed" | head -n 1)
+    
+        if [ -z "$COMPRESSED_DIR" ]; then
+          echo "Error: Could not find 'compressed' directory"
+          exit 1
+        fi
+    
+        echo "Found compressed directory: $COMPRESSED_DIR"
+        cd "$COMPRESSED_DIR"
+    
+        # 检查 rt-k3_nvram.txt 文件是否存在
+        if [ ! -f "rt-k3_nvram.txt" ]; then
+          echo "Error: rt-k3_nvram.txt not found in $COMPRESSED_DIR"
+          echo "Contents of $COMPRESSED_DIR:"
+          ls -la
+          exit 1
+        fi
+    
         echo "replace mac address from $(grep ^et0macaddr rt-k3_nvram.txt) to ${{ env.ET0MACADDR }}"
         sed -i 's/^et0macaddr=.*/et0macaddr=${{ env.ET0MACADDR }}/g' rt-k3_nvram.txt
         echo "replace mac 2.4g address from $(grep ^1:macaddr rt-k3_nvram.txt) to ${{ env.MACADDR1_24G }}"
         sed -i 's/^1:macaddr=.*/1:macaddr=${{ env.MACADDR1_24G }}/g' rt-k3_nvram.txt
         echo "replace mac 5g address from $(grep ^2:macaddr rt-k3_nvram.txt) to ${{ env.MACADDR2_5G }}"
         sed -i 's/^2:macaddr=.*/2:macaddr=${{ env.MACADDR2_5G }}/g' rt-k3_nvram.txt
-        
+    
         echo "Modified content:"
         grep -E '^(et0macaddr|1:macaddr|2:macaddr)' rt-k3_nvram.txt
 
