@@ -95,8 +95,8 @@ jobs:
         echo "Contents of am-toolchains:"
         ls -l am-toolchains
 
-   - name: Setup build environment
-     run: |
+    - name: Setup build environment
+      run: |
        cd /media/asuswrt/asuswrt-merlin.ng || exit 1
     
        # 安装必要的工具链
