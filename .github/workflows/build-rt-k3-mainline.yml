@@ -64,20 +64,50 @@ jobs:
         
 
     - name: Clone source code
-      run: |       
-        git clone https://github.com/godcong/asuswrt-merlin.ng
-        git clone https://github.com/godcong/k3screenctrl asuswrt-merlin.ng/release/src/router/k3screenctrl 
+      run: |
+        # 克隆主仓库，使用 386.12_x 分支
+        git clone -b 386.12_x https://github.com/RMerl/asuswrt-merlin.ng.git
+        cd asuswrt-merlin.ng
+    
+        # 显示当前分支和最后一次提交
+        git status
+        git log -1 --oneline
+    
+        # 克隆 k3screenctrl（如果在这个版本中需要的话）
+        if [ -d "release/src/router/k3screenctrl" ]; then
+          git clone https://github.com/godcong/k3screenctrl release/src/router/k3screenctrl 
+        fi
+
+        # 克隆 am-toolchains
+        cd ..
         git clone https://github.com/RMerl/am-toolchains.git
-        
-        mkdir -p /media/asuswrt/
-        mkdir -p /opt/images/
-        
-        ln -sf $(pwd)/asuswrt-merlin.ng /media/asuswrt/asuswrt-merlin.ng       
-        
+
+        # 创建必要的目录
+        sudo mkdir -p /media/asuswrt/
+        sudo mkdir -p /opt/images/
+
+        # 创建符号链接
+        sudo ln -sf $(pwd)/asuswrt-merlin.ng /media/asuswrt/asuswrt-merlin.ng
+
+        # 显示目录结构
+        echo "Directory structure:"
         cd /media/asuswrt/asuswrt-merlin.ng
-        git checkout mainline    
-        echo "MERLIN_VERSION=$(git show-ref --heads -s)" >> $GITHUB_ENV
-        echo "MERLIN_TAG=$(git show-ref --heads --hash=8)" >> $GITHUB_ENV
+        ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//  /g' -e 's/^/    /' -e 's/-/|/'
+
+        # 检查 router/Makefile 是否存在
+        if [ -f "release/src/router/Makefile" ]; then
+          echo "router/Makefile exists"
+          echo "First few lines of router/Makefile:"
+          head -n 10 release/src/router/Makefile
+        else
+          echo "router/Makefile does not exist"
+          echo "Contents of release/src/router:"
+          ls -la release/src/router
+        fi
+
+        # 设置环境变量
+        echo "MERLIN_VERSION=$(git rev-parse HEAD)" >> $GITHUB_ENV
+        echo "MERLIN_TAG=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
         echo "BUILD_DATE=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
 
     - name: Setup build environment
@@ -119,7 +149,7 @@ jobs:
         # 设置环境变量
         export PATH=$PATH:/opt/brcm-arm/bin:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin
         export STAGING_DIR=/media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/staging_dir
-        export BUILD_NAME=RT-K3
+        export BUILD_NAME=RT-AC3100
         export OPENSSLDIR=/usr/lib/ssl
         export CONFIGURE_ARGS="--with-openssl=$OPENSSLDIR"
     
@@ -129,7 +159,7 @@ jobs:
         CONFIG_BCMWL6=y
         CONFIG_BCM7=y
         CONFIG_BCMARM=y
-        CONFIG_RT_K3=y
+        CONFIG_RT_AC3100=y
         CONFIG_RTCONFIG_HTTPS=y
         CONFIG_RTCONFIG_SSH=y
         CONFIG_RTCONFIG_BCMARM=y
@@ -139,28 +169,24 @@ jobs:
         # 创建一个空的 save-config 文件
         touch save-config
     
-        # 检查并修改 router/Makefile
+        # 检查 router/Makefile
         ROUTER_MAKEFILE="../router/Makefile"
         if [ -f "$ROUTER_MAKEFILE" ]; then
-          echo "Contents of router/Makefile around line 478:"
-          sed -n '473,483p' "$ROUTER_MAKEFILE"
-      
-          # 尝试修复 OpenSSL 定义
-          sed -i 's/^ifeq ($(OPENSSL),y)/ifeq ($(RTCONFIG_HTTPS)$(RTCONFIG_SSH),yy)/' "$ROUTER_MAKEFILE"
-      
-          echo "Modified contents of router/Makefile around line 478:"
-          sed -n '473,483p' "$ROUTER_MAKEFILE"
+          echo "Contents of router/Makefile around OpenSSL definition:"
+          sed -n '/OPENSSL/,+10p' "$ROUTER_MAKEFILE"
         else
-          echo "router/Makefile not found"
+         echo "router/Makefile not found at $ROUTER_MAKEFILE"
+          echo "Contents of current directory:"
+          ls -la
         fi
     
         # 验证配置
         echo "Environment variables:"
         env | grep -E "PATH|STAGING_DIR|BUILD_NAME|OPENSSL"
-    
+        
         echo "Config file contents:"
         cat .config
-        
+    
         # 检查关键文件和目录
         echo "Checking key files and directories:"
         ls -l .config save-config ../router/Makefile
@@ -174,22 +200,22 @@ jobs:
 
     - name: Build Firmware
       run: |
-          cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
+        cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
     
-          # 重新设置环境变量，以确保它们在新的 shell 中可用
-          export PATH=$PATH:/opt/brcm-arm/bin:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin
-          export STAGING_DIR=/media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/staging_dir
-          export BUILD_NAME=RT-K3
-          export OPENSSLDIR=/usr/lib/ssl
-          export CONFIGURE_ARGS="--with-openssl=$OPENSSLDIR"
+        # 重新设置环境变量，以确保它们在新的 shell 中可用
+        export PATH=$PATH:/opt/brcm-arm/bin:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin
+        export STAGING_DIR=/media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/staging_dir
+        export BUILD_NAME=RT-AC3100
+        export OPENSSLDIR=/usr/lib/ssl
+        export CONFIGURE_ARGS="--with-openssl=$OPENSSLDIR"
     
-          make setprofile
-          make RT-K3
+        make setprofile
+        make RT-AC3100
     
-          if [ $? -ne 0 ]; then
-            echo "Compilation failed. Showing last 100 lines of error log:"
-            tail -n 100 /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/RT-K3.log
-          fi
+        if [ $? -ne 0 ]; then
+          echo "Compilation failed. Showing last 100 lines of error log:"
+          tail -n 100 /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/RT-AC3100.log
+        fi
     - name: Move file && Checksum
       run: |
         mv -f /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/image/*.trx /opt/images/
