@@ -169,7 +169,15 @@ jobs:
         cat .config
     
         # 修改 Makefile 以确保 OpenSSL 被定义
-        sed -i 's/^# $$OPENSSL.*$$/\1/' Makefile
+        if grep -q "OPENSSL=" Makefile; then
+          sed -i 's/^#\s*OPENSSL=.*$/OPENSSL=1/' Makefile
+        else
+          echo "OPENSSL=1" >> Makefile
+        fi
+    
+        # 显示 Makefile 中的 OPENSSL 定义
+        echo "OPENSSL definition in Makefile:"
+        grep OPENSSL Makefile
     
         # 清理和编译
         make distclean
