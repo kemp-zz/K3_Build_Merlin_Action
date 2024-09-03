@@ -35,18 +35,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v3  # 更新到 v3 版本
-    - name: Fix package management
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y software-properties-common
-        sudo add-apt-repository universe
-        sudo apt-get update
-        sudo apt-get install -f
-        sudo dpkg --configure -a
-        sudo apt-get clean
-        sudo apt-get update
-      
+      uses: actions/checkout@v3
 
     - name: Update && install packages
       run: |
@@ -56,14 +45,7 @@ jobs:
         mtd-utils intltool sharutils docbook-xsl-* texinfo dos2unix xsltproc \
         u-boot-tools device-tree-compiler qemu gperf liblzo2-dev uuid-dev build-essential \
         lzma-dev liblzma-dev lzma binutils-dev patch cmake intltool libglib2.0-dev \
-        gtk-doc-tools automake perl gcc-multilib libc6-i386 lib32stdc++6 lib32z1
-        
-        # 尝试单独安装 gcc-9-arm-linux-gnueabi
-        sudo apt-get install -y gcc-9-arm-linux-gnueabi
-    
-        # 然后安装 gcc-arm-linux-gnueabi
-        sudo apt-get install -y gcc-arm-linux-gnueabi
-    
+        gtk-doc-tools gcc-arm-linux-gnueabi automake perl gcc-multilib libc6-i386 lib32stdc++6 lib32z1
         sudo apt install automake-1.15
         sudo dpkg --add-architecture i386
         sudo apt-get update
@@ -133,17 +115,10 @@ jobs:
         sed -i 's/^1:macaddr=.*/1:macaddr=${{ env.MACADDR1_24G }}/g' rt-k3_nvram.txt
         echo "replace mac 5g address from $(grep ^2:macaddr rt-k3_nvram.txt) to ${{ env.MACADDR2_5G }}"
         sed -i 's/^2:macaddr=.*/2:macaddr=${{ env.MACADDR2_5G }}/g' rt-k3_nvram.txt
-    
+        
         # 打印修改后的内容以验证
         echo "Modified content:"
         grep -E '^(et0macaddr|1:macaddr|2:macaddr)' rt-k3_nvram.txt
-
-    - name: Increase swap space
-      run: |
-        sudo fallocate -l 4G /swapfile
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
 
     - name: Increase shell limits
       run: |
@@ -153,13 +128,6 @@ jobs:
         ulimit -s unlimited
         ulimit -a
 
-    - name: Display Environment Info
-      run: |
-        echo "PATH: $PATH"
-        echo "Current directory: $(pwd)"
-        echo "List of directories:"
-        ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /' -e 's/-/|/'
-        
     - name: Build Firmware
       run: |
         export PATH=$PATH:/opt/brcm-arm/bin
@@ -171,17 +139,24 @@ jobs:
         
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
         
+        # 添加调试信息
+        echo "Current directory: $(pwd)"
+        echo "Contents of current directory:"
+        ls -la
+        echo "Makefile contents:"
+        cat Makefile | grep -i "build_name"
+        
         # 拆分 make rt-k3 命令
         make configure
         make clean
-    
+        
         # 使用 xargs 处理可能的长参数列表
         find . -type f -name '*.[ch]' | xargs -n 100 touch
-    
-        # 使用 xargs 来运行 make
-        echo "image PROFILE=rt-k3" | xargs make
+        
+        # 直接运行 make 命令，确保传递所有必要的参数
+        make BUILD_NAME=rt-k3 PROFILE=rt-k3 image
         echo "build image done"     
-    
+        
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/
         make
         echo "build cfe done"
