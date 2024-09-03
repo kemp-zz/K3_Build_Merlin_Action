@@ -30,103 +30,63 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
-    if: github.event.repository.owner.id == github.event.sender.id
-
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
     steps:
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Update && install packages
+    - name: Setup environment
       run: |
-        sudo apt-get update
-        sudo apt-get install -y software-properties-common
-        sudo add-apt-repository universe
-        sudo apt-get update
-        sudo apt-get install -y libncurses5 libncurses5-dev m4 bison gawk flex g++ \
-        gengetopt git zlib1g-dev autoconf autopoint libtool-bin shtool autogen \
-        mtd-utils intltool sharutils docbook-xsl-* texinfo dos2unix xsltproc \
-        u-boot-tools device-tree-compiler qemu gperf liblzo2-dev uuid-dev build-essential \
-        lzma-dev liblzma-dev lzma binutils-dev patch cmake intltool libglib2.0-dev \
-        gtk-doc-tools automake perl gcc-multilib libc6-i386 lib32stdc++6 lib32z1 \
-        libssl-dev
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
+        apt-get install -y sudo git wget curl build-essential libncurses5-dev libncursesw5-dev \
+        zlib1g-dev gawk gettext libssl-dev xsltproc rsync gcc-multilib libelf-dev \
+        gcc-mipsel-linux-gnu u-boot-tools mtd-utils device-tree-compiler \
+        libtool-bin cmake libproxy-dev uuid-dev liblzo2-dev autoconf automake \
+        bash bison bzip2 diffutils file flex g++ gperf grep groff-base \
+        libc6-dev libexpat1-dev libffi-dev libncurses5-dev libsigsegv2 \
+        libslang2 libssl-dev libtool libxml-parser-perl make patch perl pkg-config \
+        python sed shtool tar texinfo unzip zlib1g zlib1g-dev
         
-        sudo apt-get install -y gcc-arm-linux-gnueabi
-        sudo apt-get install -y gcc-arm-linux-gnueabihf
-        
-        sudo apt install automake-1.15
-        sudo dpkg --add-architecture i386
-        sudo apt-get update
-        sudo apt-get install -y lsb-core libstdc++6:i386
-
-    - name: Debug package info
-      run: |
-        echo "Installed gcc versions:"
-        dpkg -l | grep gcc
-        echo "Available gcc-arm-linux-gnueabi packages:"
-        apt-cache policy gcc-arm-linux-gnueabi
-        echo "Available gcc-arm-linux-gnueabihf packages:"
-        apt-cache policy gcc-arm-linux-gnueabihf
-
     - name: Clone source code
-      run: |
-        # 创建必要的目录
-        sudo mkdir -p /media/asuswrt
-        sudo mkdir -p /opt/images
-    
-        # 克隆仓库
+      run: |       
         git clone https://github.com/godcong/asuswrt-merlin.ng
         git clone https://github.com/godcong/k3screenctrl asuswrt-merlin.ng/release/src/router/k3screenctrl 
         git clone https://github.com/RMerl/am-toolchains.git
-    
-        # 创建符号链接
-        sudo ln -sf $(pwd)/asuswrt-merlin.ng /media/asuswrt/asuswrt-merlin.ng
-    
-        # 显示克隆的仓库内容
-        echo "Contents of current directory:"
-        ls -l
-        echo "Contents of /media/asuswrt:"
-        ls -l /media/asuswrt
-        echo "Contents of am-toolchains:"
-        ls -l am-toolchains
-            # 显示克隆的仓库内容
-        echo "Contents of current directory:"
-        ls -l
-        echo "Contents of am-toolchains:"
-        ls -l am-toolchains
+        
+        mkdir -p /media/asuswrt/
+        mkdir -p /opt/images/
+        
+        ln -sf $(pwd)/asuswrt-merlin.ng /media/asuswrt/asuswrt-merlin.ng       
+        
+        cd /media/asuswrt/asuswrt-merlin.ng
+        git checkout mainline    
+        echo "MERLIN_VERSION=$(git show-ref --heads -s)" >> $GITHUB_ENV
+        echo "MERLIN_TAG=$(git show-ref --heads --hash=8)" >> $GITHUB_ENV
+        echo "BUILD_DATE=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
 
     - name: Setup build environment
       run: |
-       cd /media/asuswrt/asuswrt-merlin.ng || exit 1
-    
-       # 安装必要的工具链
-       sudo apt-get update
-       sudo apt-get install -y gcc-mipsel-linux-gnu
-    
-       # 设置交叉编译工具链
-       export PATH=$PATH:/opt/brcm-arm/bin:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin
-       echo "export PATH=$PATH" >> ~/.bashrc
-    
-       # 创建符号链接
-       sudo ln -sf /usr/bin/mipsel-linux-gnu-gcc /usr/bin/mipsel-uclibc-gcc
-    
-       # 应用环境变量
-       source ~/.bashrc
-    
-       # 显示环境信息
-       echo "Current directory: $(pwd)"
-       echo "PATH: $PATH"
-       echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
-       ls -l /opt/toolchains || echo "Directory /opt/toolchains does not exist"
-       ls -l /opt/brcm-arm || echo "Directory /opt/brcm-arm does not exist"
-    
-       # 检查交叉编译工具是否可用
-       which mipsel-uclibc-gcc || echo "mipsel-uclibc-gcc not found in PATH"
-    
-       git checkout mainline    
-       echo "MERLIN_VERSION=$(git show-ref --heads -s)" >> $GITHUB_ENV
-       echo "MERLIN_TAG=$(git show-ref --heads --hash=8)" >> $GITHUB_ENV
-       echo "BUILD_DATE=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+        cd /media/asuswrt/asuswrt-merlin.ng
+        
+        ln -sf $(pwd)/am-toolchains/brcm-arm-hnd /opt/toolchains
+        ln -sf $(pwd)/am-toolchains/brcm-arm-sdk/hndtools-arm-linux-2.6.36-uclibc-4.5.3 /opt/brcm-arm
+        
+        echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/lib" >> ~/.bashrc
+        echo "export PATH=$PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin:/opt/brcm-arm/bin" >> ~/.bashrc
+        
+        source ~/.bashrc
+        
+        echo "Current directory: $(pwd)"
+        echo "PATH: $PATH"
+        echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+        ls -l /opt/toolchains || echo "Directory /opt/toolchains does not exist"
+        ls -l /opt/brcm-arm || echo "Directory /opt/brcm-arm does not exist"
+        
+        which mipsel-linux-gnu-gcc || echo "mipsel-linux-gnu-gcc not found in PATH"
+
     - name: Modify File
       run: |
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/build/broadcom/bcm947xx/compressed
@@ -143,16 +103,14 @@ jobs:
     - name: Build Firmware
       run: |
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
-    
-        # 设置环境变量
+        
         export PATH=$PATH:/opt/brcm-arm/bin:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin
         export STAGING_DIR=/media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/staging_dir
         export BUILD_NAME=RT-K3
         export OPENSSL=1
         export OPENSSLDIR=/usr/lib/ssl
         export CONFIGURE_ARGS="--with-openssl=$OPENSSLDIR"
-    
-        # 创建配置文件
+        
         cat << EOF > .config
         CONFIG_BCMWL5=y
         CONFIG_BCMWL6=y
@@ -161,38 +119,34 @@ jobs:
         CONFIG_RT_K3=y
         CONFIG_OPENSSL11=y
         EOF
-    
-        # 显示环境变量和配置文件内容
+        
         echo "Environment variables:"
         env | grep -E "PATH|STAGING_DIR|BUILD_NAME|OPENSSL"
         echo "Config file contents:"
         cat .config
-    
-        # 修改 Makefile 以确保 OpenSSL 被定义
-        if grep -q "OPENSSL=" Makefile; then
-          sed -i 's/^#\s*OPENSSL=.*$/OPENSSL=1/' Makefile
-        else
-          echo "OPENSSL=1" >> Makefile
-        fi
-    
-        # 显示 Makefile 中的 OPENSSL 定义
-        echo "OPENSSL definition in Makefile:"
+        
+        echo "export OPENSSL=1" >> Makefile
+        echo "export OPENSSLDIR=/usr/lib/ssl" >> Makefile
+        
+        echo "OPENSSL definition in main Makefile:"
         grep OPENSSL Makefile
-    
-        # 清理和编译
+        
+        echo "Contents of router/Makefile:"
+        grep -n OPENSSL ../router/Makefile
+        
         make distclean
-        make RT-K3
-    
-        # 如果编译失败，显示错误日志
+        make RT-K3 OPENSSL=1 OPENSSLDIR=/usr/lib/ssl
+        
         if [ $? -ne 0 ]; then
           echo "Compilation failed. Showing last 100 lines of error log:"
           tail -n 100 /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/RT-K3.log
         fi
+
     - name: Move file && Checksum
       run: |
-        sudo mv -f /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/image/*.trx /opt/images/
-        sudo cp /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/build/broadcom/bcm947xx/compressed/rt-k3_nvram.txt /opt/images/
-        sudo cp /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/cfe*.bin /opt/images/
+        mv -f /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/image/*.trx /opt/images/
+        cp /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/build/broadcom/bcm947xx/compressed/rt-k3_nvram.txt /opt/images/
+        cp /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/cfe*.bin /opt/images/
         
         sha256sum /opt/images/* > /opt/images/checksum.txt
 
