@@ -129,6 +129,7 @@ jobs:
         export OPENSSLDIR=/usr/lib/ssl
         export CONFIGURE_ARGS="--with-openssl=$OPENSSLDIR"
     
+        # 创建 .config 文件
         cat << EOF > .config
         CONFIG_BCMWL5=y
         CONFIG_BCMWL6=y
@@ -137,6 +138,9 @@ jobs:
         CONFIG_RT_K3=y
         CONFIG_OPENSSL11=y
         EOF
+    
+        # 创建一个空的 save-config 文件
+        touch save-config
     
         echo "Environment variables:"
         env | grep -E "PATH|STAGING_DIR|BUILD_NAME|OPENSSL"
@@ -151,12 +155,15 @@ jobs:
         echo "OPENSSL definition in main Makefile:"
         grep -n OPENSSL Makefile
     
-        # 检查 router 目录是否存在
-        if [ -d "../router" ]; then
+        # 修改 router/Makefile
+        if [ -f "../router/Makefile" ]; then
+          sed -i 's/^#\s*OPENSSL=/OPENSSL=/' ../router/Makefile
+          echo "export OPENSSL=1" >> ../router/Makefile
+          echo "export OPENSSLDIR=/usr/lib/ssl" >> ../router/Makefile
           echo "Contents of router/Makefile:"
           grep -n OPENSSL ../router/Makefile
         else
-          echo "router directory not found"
+          echo "router/Makefile not found"
           ls -l ..
         fi
     
@@ -167,7 +174,6 @@ jobs:
           echo "Compilation failed. Showing last 100 lines of error log:"
           tail -n 100 /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/RT-K3.log
         fi
-
     - name: Move file && Checksum
       run: |
         mv -f /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/image/*.trx /opt/images/
