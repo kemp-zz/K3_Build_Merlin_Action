@@ -1,4 +1,4 @@
-name: build rt-k3-mainline
+name: build rt-ac3100-mainline
 permissions:
   contents: write
 on: 
@@ -42,16 +42,17 @@ jobs:
 
     - name: Setup environment
       run: |
+        set -e
         apt-get update
         DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
-        apt-get install -y software-properties-common bash
+        apt-get install -y software-properties-common bash git wget curl build-essential
         add-apt-repository universe
         apt-get update
-        apt-get install -y git wget curl build-essential libncurses5-dev libncursesw5-dev \
+        apt-get install -y libncurses5-dev libncursesw5-dev \
         zlib1g-dev gawk gettext libssl-dev xsltproc rsync gcc-multilib \
         u-boot-tools mtd-utils device-tree-compiler \
         libtool-bin cmake libproxy-dev uuid-dev liblzo2-dev autoconf automake \
-        bash bison bzip2 diffutils file flex g++ gperf grep groff-base \
+        bison bzip2 diffutils file flex g++ gperf grep groff-base \
         libc6-dev libexpat1-dev libffi-dev libncurses5-dev libsigsegv2 \
         libslang2 libssl-dev libtool libxml-parser-perl make patch perl pkg-config \
         python sed shtool tar texinfo unzip zlib1g zlib1g-dev
@@ -61,15 +62,10 @@ jobs:
         
         # Install additional dependencies
         apt-get install -y libelf-dev
-
-    - name: Install essential tools
-      run: |
-           apt-get update
-           DEBIAN_FRONTEND=noninteractive apt-get install -y git wget curl build-essential
         
-
     - name: Clone source code
       run: |
+        set -e
         # 克隆主仓库，使用 386.12_x 分支
         git clone -b 386.12_x https://github.com/RMerl/asuswrt-merlin.ng.git
         cd asuswrt-merlin.ng
@@ -78,11 +74,6 @@ jobs:
         git status
         git log -1 --oneline
     
-        # 克隆 k3screenctrl（如果在这个版本中需要的话）
-        if [ -d "release/src/router/k3screenctrl" ]; then
-          git clone https://github.com/godcong/k3screenctrl release/src/router/k3screenctrl 
-        fi
-
         # 克隆 am-toolchains
         cd ..
         git clone https://github.com/RMerl/am-toolchains.git
@@ -97,7 +88,7 @@ jobs:
         # 显示目录结构
         echo "Directory structure:"
         cd /media/asuswrt/asuswrt-merlin.ng
-        ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//  /g' -e 's/^/    /' -e 's/-/|/'
+        find . -maxdepth 3 -type d
 
         # 检查 router/Makefile 是否存在
         if [ -f "release/src/router/Makefile" ]; then
@@ -117,25 +108,26 @@ jobs:
 
     - name: Check Directory Structure
       run: |
+        set -e
         echo "Current working directory:"
         pwd
-
         echo "Searching for *_nvram.txt files:"
         find /media/asuswrt/asuswrt-merlin.ng -name "*_nvram.txt"
-
         echo "Contents of src-rt-7.14.114.x/src directory:"
-        ls -R /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
+        ls -R /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src || echo "Directory not found"
+
     - name: Setup build environment
       run: |
+        set -e
         cd /media/asuswrt/asuswrt-merlin.ng || exit 1
         
-        ln -sf $(pwd)/am-toolchains/brcm-arm-hnd /opt/toolchains
-        ln -sf $(pwd)/am-toolchains/brcm-arm-sdk/hndtools-arm-linux-2.6.36-uclibc-4.5.3 /opt/brcm-arm
+        ln -sf $(pwd)/../am-toolchains/brcm-arm-hnd /opt/toolchains
+        ln -sf $(pwd)/../am-toolchains/brcm-arm-sdk/hndtools-arm-linux-2.6.36-uclibc-4.5.3 /opt/brcm-arm
         
         echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/lib" >> ~/.bashrc
         echo "export PATH=$PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin:/opt/brcm-arm/bin" >> ~/.bashrc
         
-        . ~/.bashrc
+        source ~/.bashrc
         
         echo "Current directory: $(pwd)"
         echo "PATH: $PATH"
@@ -144,30 +136,44 @@ jobs:
         ls -l /opt/brcm-arm || echo "Directory /opt/brcm-arm does not exist"
         
         which mipsel-linux-gnu-gcc || echo "mipsel-linux-gnu-gcc not found in PATH"
+
     - name: Modify File
       run: |
+        set -e
         # 查找 nvram 文件
-        NVRAM_FILE=$(find /media/asuswrt/asuswrt-merlin.ng -name "*_nvram.txt" | grep -i "rt-ac3100" | head -n 1)
-    
+        NVRAM_FILE=$(find /media/asuswrt/asuswrt-merlin.ng -type f $$ -name "*_nvram.txt" -o -name "*AC3100*" $$ | head -n 1)
+        
         if [ -z "$NVRAM_FILE" ]; then
-          echo "Error: Could not find RT-AC3100 nvram file"
+          echo "Error: Could not find nvram file"
+          echo "Searching for any .txt file as a fallback:"
+          NVRAM_FILE=$(find /media/asuswrt/asuswrt-merlin.ng -type f -name "*.txt" | head -n 1)
+          if [ -z "$NVRAM_FILE" ]; then
+            echo "Error: Could not find any .txt file"
+            exit 1
+          fi
+        fi
+        
+        echo "Found potential nvram file: $NVRAM_FILE"
+        echo "File contents:"
+        cat "$NVRAM_FILE"
+        
+        # 检查文件是否包含我们需要修改的内容
+        if ! grep -q "et0macaddr" "$NVRAM_FILE"; then
+          echo "Error: File does not contain expected content"
           exit 1
         fi
-    
-        echo "Found nvram file: $NVRAM_FILE"
-    
+        
         # 修改文件
-        echo "replace mac address from $(grep ^et0macaddr $NVRAM_FILE) to ${{ env.ET0MACADDR }}"
-        sed -i 's/^et0macaddr=.*/et0macaddr=${{ env.ET0MACADDR }}/g' $NVRAM_FILE
-        echo "replace mac 2.4g address from $(grep ^1:macaddr $NVRAM_FILE) to ${{ env.MACADDR1_24G }}"
-        sed -i 's/^1:macaddr=.*/1:macaddr=${{ env.MACADDR1_24G }}/g' $NVRAM_FILE
-        echo "replace mac 5g address from $(grep ^2:macaddr $NVRAM_FILE) to ${{ env.MACADDR2_5G }}"
-        sed -i 's/^2:macaddr=.*/2:macaddr=${{ env.MACADDR2_5G }}/g' $NVRAM_FILE
-    
+        sed -i "s/^et0macaddr=.*/et0macaddr=$ET0MACADDR/" "$NVRAM_FILE"
+        sed -i "s/^1:macaddr=.*/1:macaddr=$MACADDR1_24G/" "$NVRAM_FILE"
+        sed -i "s/^2:macaddr=.*/2:macaddr=$MACADDR2_5G/" "$NVRAM_FILE"
+        
         echo "Modified content:"
-        grep -E '^(et0macaddr|1:macaddr|2:macaddr)' $NVRAM_FILE
+        grep -E '^(et0macaddr|1:macaddr|2:macaddr)' "$NVRAM_FILE"
+
     - name: Prepare Configuration
       run: |
+        set -e
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
     
         # 设置环境变量
@@ -199,7 +205,7 @@ jobs:
           echo "Contents of router/Makefile around OpenSSL definition:"
           sed -n '/OPENSSL/,+10p' "$ROUTER_MAKEFILE"
         else
-         echo "router/Makefile not found at $ROUTER_MAKEFILE"
+          echo "router/Makefile not found at $ROUTER_MAKEFILE"
           echo "Contents of current directory:"
           ls -la
         fi
@@ -224,6 +230,7 @@ jobs:
 
     - name: Build Firmware
       run: |
+        set -e
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
     
         # 重新设置环境变量，以确保它们在新的 shell 中可用
@@ -239,14 +246,22 @@ jobs:
         if [ $? -ne 0 ]; then
           echo "Compilation failed. Showing last 100 lines of error log:"
           tail -n 100 /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/RT-AC3100.log
+          exit 1
         fi
+
     - name: Move file && Checksum
       run: |
-        mv -f /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/image/*.trx /opt/images/
-        cp /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/build/broadcom/bcm947xx/compressed/rt-k3_nvram.txt /opt/images/
-        cp /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/cfe*.bin /opt/images/
+        set -e
+        mkdir -p /opt/images
+        find /media/asuswrt/asuswrt-merlin.ng -name "*.trx" -exec cp {} /opt/images/ \;
+        find /media/asuswrt/asuswrt-merlin.ng -name "*_nvram.txt" -exec cp {} /opt/images/ \;
+        find /media/asuswrt/asuswrt-merlin.ng -name "cfe*.bin" -exec cp {} /opt/images/ \;
         
-        sha256sum /opt/images/* > /opt/images/checksum.txt
+        cd /opt/images
+        sha256sum * > checksum.txt
+        
+        echo "Contents of /opt/images:"
+        ls -la /opt/images
 
     - name: Create Release
       id: create_release
@@ -254,9 +269,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        files: "/opt/images/*.*,release/src-rt-7.14.114.x/src/cfe/cfe_rt-k3.bin"  
-        tag_name: ${{ env.BUILD_DATE }}_mainline_k3_${{ env.MERLIN_TAG }}
+        files: "/opt/images/*"
+        tag_name: ${{ env.BUILD_DATE }}_RT-AC3100_${{ env.MERLIN_TAG }}
         body: |
-          this is only a latest build from mainline
-          version: https://github.com/godcong/asuswrt-merlin.ng/commit/${{ env.MERLIN_VERSION }}
+          This is a build for RT-AC3100 from Asuswrt-Merlin 386.12_x branch
+          Version: https://github.com/RMerl/asuswrt-merlin.ng/commit/${{ env.MERLIN_VERSION }}
         token: ${{ secrets.GITHUB_TOKEN }}
