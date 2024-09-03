@@ -99,23 +99,9 @@ jobs:
       run: |
         cd /media/asuswrt/asuswrt-merlin.ng || exit 1
     
-        # 检查 install.sh 是否存在
-        if [ -f "./release/src-rt-7.14.114.x/src/toolchains/install.sh" ]; then
-          sudo ./release/src-rt-7.14.114.x/src/toolchains/install.sh
-        else
-          echo "install.sh not found. Setting up environment manually."
-      
-          # 创建必要的目录
-          sudo mkdir -p /opt/toolchains
-      
-          # 链接工具链
-          sudo ln -sf $(pwd)/../am-toolchains/brcm-arm-hnd /opt/toolchains/
-          sudo ln -sf $(pwd)/../am-toolchains/brcm-arm-sdk/hndtools-arm-linux-2.6.36-uclibc-4.5.3 /opt/brcm-arm
-      
-          # 设置环境变量
-          echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/lib" >> ~/.bashrc
-          echo "export PATH=$PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin:/opt/brcm-arm/bin" >> ~/.bashrc
-        fi
+        # 设置交叉编译工具链
+        export PATH=$PATH:/opt/brcm-arm/bin:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin
+        echo "export PATH=$PATH" >> ~/.bashrc
     
         # 应用环境变量
         source ~/.bashrc
@@ -126,6 +112,9 @@ jobs:
         echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
         ls -l /opt/toolchains || echo "Directory /opt/toolchains does not exist"
         ls -l /opt/brcm-arm || echo "Directory /opt/brcm-arm does not exist"
+    
+        # 检查交叉编译工具是否可用
+        which mipsel-uclibc-gcc || echo "mipsel-uclibc-gcc not found in PATH"
     
         git checkout mainline    
         echo "MERLIN_VERSION=$(git show-ref --heads -s)" >> $GITHUB_ENV
@@ -147,42 +136,40 @@ jobs:
     - name: Build Firmware
       run: |
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
-        
+    
         # 设置环境变量
         export PATH=$PATH:/opt/brcm-arm/bin:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin
         export STAGING_DIR=/media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/staging_dir
-        export BUILD_NAME=rt-k3
+        export BUILD_NAME=RT-K3
         export OPENSSL=1
         export OPENSSLDIR=/usr/lib/ssl
         export CONFIGURE_ARGS="--with-openssl=$OPENSSLDIR"
-        
+    
         # 创建配置文件
         cat << EOF > .config
         CONFIG_BCMWL5=y
         CONFIG_BCMWL6=y
         CONFIG_BCM7=y
         CONFIG_BCMARM=y
-        CONFIG_RT_K3=y
+         CONFIG_RT_K3=y
         CONFIG_OPENSSL11=y
         EOF
-        
+    
         # 显示环境变量和配置文件内容
         echo "Environment variables:"
         env | grep -E "PATH|STAGING_DIR|BUILD_NAME|OPENSSL"
         echo "Config file contents:"
         cat .config
-        
+    
         # 清理和编译
-        make clean
-        make configure
-        make rt-k3
-        
+        make distclean
+        make RT-K3
+    
         # 如果编译失败，显示错误日志
         if [ $? -ne 0 ]; then
           echo "Compilation failed. Showing last 100 lines of error log:"
           tail -n 100 /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/RT-K3.log
         fi
-
     - name: Move file && Checksum
       run: |
         sudo mv -f /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/image/*.trx /opt/images/
