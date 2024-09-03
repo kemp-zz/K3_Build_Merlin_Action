@@ -120,27 +120,11 @@ jobs:
         echo "Current working directory:"
         pwd
 
-        echo "Contents of current directory:"
-        ls -la
+        echo "Searching for *_nvram.txt files:"
+        find /media/asuswrt/asuswrt-merlin.ng -name "*_nvram.txt"
 
-        echo "Contents of /media/asuswrt:"
-        ls -la /media/asuswrt
-
-        echo "Contents of /media/asuswrt/asuswrt-merlin.ng (if exists):"
-        ls -la /media/asuswrt/asuswrt-merlin.ng || echo "Directory does not exist"
-
-        echo "Directory structure of /media/asuswrt/asuswrt-merlin.ng:"
-        cd /media/asuswrt/asuswrt-merlin.ng && find . -maxdepth 3 -type d
-
-        echo "Searching for 'compressed' directory:"
-        find /media/asuswrt/asuswrt-merlin.ng -type d -name "compressed"
-
-        echo "Contents of asuswrt-merlin.ng/release directory (if exists):"
-        ls -la /media/asuswrt/asuswrt-merlin.ng/release || echo "Directory does not exist"
-
-        echo "Contents of asuswrt-merlin.ng/release/src-rt-7.14.114.x directory (if exists):"
-        ls -la /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x || echo "Directory does not exist"
-
+        echo "Contents of src-rt-7.14.114.x/src directory:"
+        ls -R /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
     - name: Setup build environment
       run: |
         cd /media/asuswrt/asuswrt-merlin.ng || exit 1
@@ -162,35 +146,24 @@ jobs:
         which mipsel-linux-gnu-gcc || echo "mipsel-linux-gnu-gcc not found in PATH"
     - name: Modify File
       run: |
-        # 查找 compressed 目录
-        COMPRESSED_DIR=$(find /media/asuswrt/asuswrt-merlin.ng -type d -name "compressed" | head -n 1)
+        # 查找 nvram 文件
+        NVRAM_FILE=$(find /media/asuswrt/asuswrt-merlin.ng -name "*_nvram.txt" | grep -i "rt-ac3100" | head -n 1)
     
-        if [ -z "$COMPRESSED_DIR" ]; then
-          echo "Error: Could not find 'compressed' directory"
-          exit 1
-        fi
-    
-        echo "Found compressed directory: $COMPRESSED_DIR"
-        cd "$COMPRESSED_DIR"
-    
-        # 检查 nvram 文件是否存在
-        NVRAM_FILE=$(find . -name "*_nvram.txt" | head -n 1)
         if [ -z "$NVRAM_FILE" ]; then
-          echo "Error: Could not find *_nvram.txt file in $COMPRESSED_DIR"
-          echo "Contents of $COMPRESSED_DIR:"
-          ls -la
+          echo "Error: Could not find RT-AC3100 nvram file"
           exit 1
         fi
     
         echo "Found nvram file: $NVRAM_FILE"
     
+        # 修改文件
         echo "replace mac address from $(grep ^et0macaddr $NVRAM_FILE) to ${{ env.ET0MACADDR }}"
         sed -i 's/^et0macaddr=.*/et0macaddr=${{ env.ET0MACADDR }}/g' $NVRAM_FILE
         echo "replace mac 2.4g address from $(grep ^1:macaddr $NVRAM_FILE) to ${{ env.MACADDR1_24G }}"
         sed -i 's/^1:macaddr=.*/1:macaddr=${{ env.MACADDR1_24G }}/g' $NVRAM_FILE
         echo "replace mac 5g address from $(grep ^2:macaddr $NVRAM_FILE) to ${{ env.MACADDR2_5G }}"
         sed -i 's/^2:macaddr=.*/2:macaddr=${{ env.MACADDR2_5G }}/g' $NVRAM_FILE
-        
+    
         echo "Modified content:"
         grep -E '^(et0macaddr|1:macaddr|2:macaddr)' $NVRAM_FILE
     - name: Prepare Configuration
