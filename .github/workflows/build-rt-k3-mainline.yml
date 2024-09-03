@@ -114,15 +114,21 @@ jobs:
 
     - name: Build Firmware
       run: |
-        cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src
-        
+        cd /media/asuswrt/asuswrt-merlin.ng
+    
+        # 显示目录结构
+        echo "Directory structure:"
+        ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//  /g' -e 's/^/    /' -e 's/-/|/'
+    
+        cd release/src-rt-7.14.114.x/src
+    
         export PATH=$PATH:/opt/brcm-arm/bin:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin
         export STAGING_DIR=/media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/staging_dir
         export BUILD_NAME=RT-K3
         export OPENSSL=1
         export OPENSSLDIR=/usr/lib/ssl
         export CONFIGURE_ARGS="--with-openssl=$OPENSSLDIR"
-        
+    
         cat << EOF > .config
         CONFIG_BCMWL5=y
         CONFIG_BCMWL6=y
@@ -131,24 +137,32 @@ jobs:
         CONFIG_RT_K3=y
         CONFIG_OPENSSL11=y
         EOF
-        
+    
         echo "Environment variables:"
         env | grep -E "PATH|STAGING_DIR|BUILD_NAME|OPENSSL"
         echo "Config file contents:"
         cat .config
-        
+    
+        # 修改主 Makefile
+        sed -i 's/^#\s*OPENSSL=/OPENSSL=/' Makefile
         echo "export OPENSSL=1" >> Makefile
         echo "export OPENSSLDIR=/usr/lib/ssl" >> Makefile
-        
+    
         echo "OPENSSL definition in main Makefile:"
-        grep OPENSSL Makefile
-        
-        echo "Contents of router/Makefile:"
-        grep -n OPENSSL ../router/Makefile
-        
+        grep -n OPENSSL Makefile
+    
+        # 检查 router 目录是否存在
+        if [ -d "../router" ]; then
+          echo "Contents of router/Makefile:"
+          grep -n OPENSSL ../router/Makefile
+        else
+          echo "router directory not found"
+          ls -l ..
+        fi
+    
         make distclean
         make RT-K3 OPENSSL=1 OPENSSLDIR=/usr/lib/ssl
-        
+    
         if [ $? -ne 0 ]; then
           echo "Compilation failed. Showing last 100 lines of error log:"
           tail -n 100 /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/RT-K3.log
