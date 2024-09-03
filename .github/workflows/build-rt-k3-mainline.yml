@@ -139,12 +139,20 @@ jobs:
         # 创建一个空的 save-config 文件
         touch save-config
     
-        # 修改主 Makefile（如果需要）
-        # 注意：我们不再直接设置 OPENSSL=1
-    
-        # 创建或修改 router/Makefile
-        mkdir -p ../router
-        cp /media/asuswrt/asuswrt-merlin.ng/release/src/router/Makefile ../router/Makefile
+        # 检查并修改 router/Makefile
+        ROUTER_MAKEFILE="../router/Makefile"
+        if [ -f "$ROUTER_MAKEFILE" ]; then
+          echo "Contents of router/Makefile around line 478:"
+          sed -n '473,483p' "$ROUTER_MAKEFILE"
+      
+          # 尝试修复 OpenSSL 定义
+          sed -i 's/^ifeq ($(OPENSSL),y)/ifeq ($(RTCONFIG_HTTPS)$(RTCONFIG_SSH),yy)/' "$ROUTER_MAKEFILE"
+      
+          echo "Modified contents of router/Makefile around line 478:"
+          sed -n '473,483p' "$ROUTER_MAKEFILE"
+        else
+          echo "router/Makefile not found"
+        fi
     
         # 验证配置
         echo "Environment variables:"
@@ -152,17 +160,17 @@ jobs:
     
         echo "Config file contents:"
         cat .config
-    
-        echo "Contents of router/Makefile (first 100 lines):"
-        head -n 100 ../router/Makefile
-    
+        
         # 检查关键文件和目录
         echo "Checking key files and directories:"
         ls -l .config save-config ../router/Makefile
     
-        # 尝试运行一个简单的 make 命令来测试配置
-        echo "Testing make command:"
+        # 尝试运行 make setprofile 命令并显示详细输出
+        echo "Testing make setprofile command:"
         make -n setprofile
+    
+        echo "Running make setprofile with verbose output:"
+        make setprofile V=s
 
     - name: Build Firmware
       run: |
