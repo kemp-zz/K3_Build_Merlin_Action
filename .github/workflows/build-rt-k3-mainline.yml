@@ -145,10 +145,13 @@ jobs:
         sudo mkswap /swapfile
         sudo swapon /swapfile
 
-    - name: Increase argument length limit
+    - name: Increase shell limits
       run: |
-        sudo sysctl -w kernel.args_max=2097152
-        sudo sysctl -w kernel.args_max_size=2097152
+        echo "Current limits:"
+        ulimit -a
+        echo "Attempting to increase limits:"
+        ulimit -s unlimited
+        ulimit -a
 
     - name: Display Environment Info
       run: |
@@ -171,13 +174,14 @@ jobs:
         # 拆分 make rt-k3 命令
         make configure
         make clean
-        
+    
         # 使用 xargs 处理可能的长参数列表
-        find . -type f -name '*.[ch]' | xargs -n 50 touch
-        
-        make image PROFILE=rt-k3
+        find . -type f -name '*.[ch]' | xargs -n 100 touch
+    
+        # 使用 xargs 来运行 make
+        echo "image PROFILE=rt-k3" | xargs make
         echo "build image done"     
-        
+    
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/
         make
         echo "build cfe done"
