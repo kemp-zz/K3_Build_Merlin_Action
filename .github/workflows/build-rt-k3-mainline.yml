@@ -41,14 +41,23 @@ jobs:
       run: |
         apt-get update
         DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
-        apt-get install -y sudo git wget curl build-essential libncurses5-dev libncursesw5-dev \
-        zlib1g-dev gawk gettext libssl-dev xsltproc rsync gcc-multilib libelf-dev \
-        gcc-mipsel-linux-gnu u-boot-tools mtd-utils device-tree-compiler \
+        apt-get install -y software-properties-common
+        add-apt-repository universe
+        apt-get update
+        apt-get install -y git wget curl build-essential libncurses5-dev libncursesw5-dev \
+        zlib1g-dev gawk gettext libssl-dev xsltproc rsync gcc-multilib \
+        u-boot-tools mtd-utils device-tree-compiler \
         libtool-bin cmake libproxy-dev uuid-dev liblzo2-dev autoconf automake \
         bash bison bzip2 diffutils file flex g++ gperf grep groff-base \
         libc6-dev libexpat1-dev libffi-dev libncurses5-dev libsigsegv2 \
         libslang2 libssl-dev libtool libxml-parser-perl make patch perl pkg-config \
         python sed shtool tar texinfo unzip zlib1g zlib1g-dev
+        
+        # Install cross-compilation toolchain
+        apt-get install -y gcc-mipsel-linux-gnu
+        
+        # Install additional dependencies
+        apt-get install -y libelf-dev
         
     - name: Clone source code
       run: |       
