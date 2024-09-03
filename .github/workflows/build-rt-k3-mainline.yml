@@ -73,21 +73,47 @@ jobs:
         git clone https://github.com/godcong/asuswrt-merlin.ng
         git clone https://github.com/godcong/k3screenctrl asuswrt-merlin.ng/release/src/router/k3screenctrl 
         git clone https://github.com/RMerl/am-toolchains.git
-               
+        
         sudo mkdir -p /media/asuswrt/
         sudo mkdir -p /opt/images/
         
-    - name: Link Directory
-      run: |       
-        sudo ln -s $(pwd)/am-toolchains/brcm-arm-hnd /opt/toolchains
-        sudo ln -s $(pwd)/am-toolchains/brcm-arm-sdk/hndtools-arm-linux-2.6.36-uclibc-4.5.3 /opt/brcm-arm
-        sudo ln -sf bash /bin/sh
-        echo "export LD_LIBRARY_PATH=$LD_LIBRARY:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/lib" >> ~/.profile
-        echo "export TOOLCHAIN_BASE=/opt/toolchains" >> ~/.profile
-        echo "PATH=\$PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin" >> ~/.profile
-        echo "PATH=\$PATH:/opt/toolchains/crosstools-aarch64-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin" >> ~/.profile  
+        # 显示克隆的仓库内容
+        echo "Contents of current directory:"
+        ls -l
+        echo "Contents of am-toolchains:"
+        ls -l am-toolchains
+
+    - name: Setup build environment
+      run: |
+        cd /media/asuswrt/asuswrt-merlin.ng
         
-        sudo ln -s $(pwd)/asuswrt-merlin.ng /media/asuswrt/asuswrt-merlin.ng       
+        # 检查 install.sh 是否存在
+        if [ -f "./release/src-rt-7.14.114.x/src/toolchains/install.sh" ]; then
+          sudo ./release/src-rt-7.14.114.x/src/toolchains/install.sh
+        else
+          echo "install.sh not found. Setting up environment manually."
+          
+          # 创建必要的目录
+          sudo mkdir -p /opt/toolchains
+          
+          # 链接工具链
+          sudo ln -sf $(pwd)/am-toolchains/brcm-arm-hnd /opt/toolchains/
+          sudo ln -sf $(pwd)/am-toolchains/brcm-arm-sdk/hndtools-arm-linux-2.6.36-uclibc-4.5.3 /opt/brcm-arm
+          
+          # 设置环境变量
+          echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/lib" >> ~/.bashrc
+          echo "export PATH=$PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin:/opt/brcm-arm/bin" >> ~/.bashrc
+        fi
+        
+        # 应用环境变量
+        source ~/.bashrc
+        
+        # 显示环境信息
+        echo "Current directory: $(pwd)"
+        echo "PATH: $PATH"
+        echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+        ls -l /opt/toolchains
+        ls -l /opt/brcm-arm
         
         cd /media/asuswrt/asuswrt-merlin.ng
         git checkout mainline    
@@ -95,14 +121,6 @@ jobs:
         echo "MERLIN_TAG=$(git show-ref --heads --hash=8)" >> $GITHUB_ENV
         echo "BUILD_DATE=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
 
-    - name: Setup build environment
-      run: |
-        cd /media/asuswrt/asuswrt-merlin.ng
-        sudo ./release/src-rt-7.14.114.x/src/toolchains/install.sh
-        echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/lib" >> ~/.bashrc
-        echo "export PATH=$PATH:/opt/toolchains/crosstools-arm-gcc-5.3-linux-4.1-glibc-2.22-binutils-2.25/usr/bin" >> ~/.bashrc
-        source ~/.bashrc
-        
     - name: Modify File
       run: |
         cd /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/cfe/build/broadcom/bcm947xx/compressed
@@ -125,15 +143,36 @@ jobs:
         export STAGING_DIR=/media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/staging_dir
         export BUILD_NAME=rt-k3
         export OPENSSL=1
+        export OPENSSLDIR=/usr/lib/ssl
+        export CONFIGURE_ARGS="--with-openssl=$OPENSSLDIR"
         
         # 创建配置文件
-        echo "CONFIG_BCMWL5=y" > .config
-        echo "CONFIG_BCMWL6=y" >> .config
-        echo "CONFIG_BCM7=y" >> .config
+        cat << EOF > .config
+        CONFIG_BCMWL5=y
+        CONFIG_BCMWL6=y
+        CONFIG_BCM7=y
+        CONFIG_BCMARM=y
+        CONFIG_RT_K3=y
+        CONFIG_OPENSSL11=y
+        EOF
         
+        # 显示环境变量和配置文件内容
+        echo "Environment variables:"
+        env | grep -E "PATH|STAGING_DIR|BUILD_NAME|OPENSSL"
+        echo "Config file contents:"
+        cat .config
+        
+        # 清理和编译
         make clean
+        make configure
         make rt-k3
         
+        # 如果编译失败，显示错误日志
+        if [ $? -ne 0 ]; then
+          echo "Compilation failed. Showing last 100 lines of error log:"
+          tail -n 100 /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/RT-K3.log
+        fi
+
     - name: Move file && Checksum
       run: |
         sudo mv -f /media/asuswrt/asuswrt-merlin.ng/release/src-rt-7.14.114.x/src/image/*.trx /opt/images/
