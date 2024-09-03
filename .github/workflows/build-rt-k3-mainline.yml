@@ -61,6 +61,11 @@ jobs:
         
         # Install additional dependencies
         apt-get install -y libelf-dev
+
+    - name: Install essential tools
+      run: |
+           apt-get update
+           DEBIAN_FRONTEND=noninteractive apt-get install -y git wget curl build-essential
         
 
     - name: Clone source code
@@ -83,11 +88,11 @@ jobs:
         git clone https://github.com/RMerl/am-toolchains.git
 
         # 创建必要的目录
-        sudo mkdir -p /media/asuswrt/
-        sudo mkdir -p /opt/images/
+        mkdir -p /media/asuswrt/
+        mkdir -p /opt/images/
 
         # 创建符号链接
-        sudo ln -sf $(pwd)/asuswrt-merlin.ng /media/asuswrt/asuswrt-merlin.ng
+        ln -sf $(pwd)/asuswrt-merlin.ng /media/asuswrt/asuswrt-merlin.ng
 
         # 显示目录结构
         echo "Directory structure:"
