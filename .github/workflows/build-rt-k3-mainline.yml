@@ -71,8 +71,25 @@ jobs:
 
     - name: Fix aclocal error
       run: |
-        sudo ln -s /usr/bin/aclocal /usr/bin/aclocal-1.15
-        sudo ln -s /usr/bin/automake /usr/bin/automake-1.15
+        # 检查并创建 aclocal 链接
+        if [ ! -e /usr/bin/aclocal-1.15 ]; then
+          sudo ln -s /usr/bin/aclocal /usr/bin/aclocal-1.15
+        elif [ ! -L /usr/bin/aclocal-1.15 ]; then
+          sudo mv /usr/bin/aclocal-1.15 /usr/bin/aclocal-1.15.bak
+          sudo ln -s /usr/bin/aclocal /usr/bin/aclocal-1.15
+        fi
+
+        # 检查并创建 automake 链接
+        if [ ! -e /usr/bin/automake-1.15 ]; then
+          sudo ln -s /usr/bin/automake /usr/bin/automake-1.15
+        elif [ ! -L /usr/bin/automake-1.15 ]; then
+          sudo mv /usr/bin/automake-1.15 /usr/bin/automake-1.15.bak
+          sudo ln -s /usr/bin/automake /usr/bin/automake-1.15
+        fi
+
+        # 验证链接是否正确创建
+        ls -l /usr/bin/aclocal-1.15
+        ls -l /usr/bin/automake-1.15
 
     - name: Update x86 package
       run: |
